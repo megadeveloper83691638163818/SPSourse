@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="ru" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spore Decompilation Project - Восстановление движка</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Базовые стили и физические текстуры */
+        body {
+            background-color: #1a1a1a;
+            /* Текстура перфорированного металла / серверной стойки */
+            background-image: 
+                radial-gradient(#111 15%, transparent 16%),
+                radial-gradient(#111 15%, transparent 16%);
+            background-size: 8px 8px;
+            background-position: 0 0, 4px 4px;
+            color: #d0d0d0;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Металлический/Пластиковый корпус */
+        .hardware-panel {
+            background: #2a2c30;
+            background-image: linear-gradient(180deg, #36393f 0%, #2a2c30 40%, #1f2124 100%);
+            border: 1px solid #111;
+            border-top: 1px solid #555;
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.15);
+            position: relative;
+        }
+
+        /* Выдавленный текст */
+        .engraved-text {
+            color: transparent;
+            background-color: #444;
+            background-clip: text;
+            -webkit-background-clip: text;
+            text-shadow: 0px 2px 3px rgba(255,255,255,0.1);
+        }
+        
+        .embossed-text {
+            color: #ccc;
+            text-shadow: 0 -1px 1px #000, 0 1px 1px rgba(255,255,255,0.2);
+        }
+
+        /* Вдавленные LCD / CRT экраны */
+        .inset-screen {
+            background-color: #051405;
+            background-image: 
+                linear-gradient(rgba(0, 0, 0, 0.3) 50%, transparent 50%),
+                radial-gradient(circle at center, #0a220a 0%, #000 100%);
+            background-size: 100% 4px, 100% 100%;
+            border: 3px solid #000;
+            border-bottom: 2px solid #333;
+            border-right: 2px solid #333;
+            border-radius: 8px;
+            box-shadow: inset 0 5px 15px rgba(0,0,0,1);
+            color: #4af626; /* Фосфорный зеленый */
+            text-shadow: 0 0 8px rgba(74, 246, 38, 0.6);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .inset-screen-amber {
+            color: #ffb000;
+            text-shadow: 0 0 8px rgba(255, 176, 0, 0.6);
+            background-image: 
+                linear-gradient(rgba(0, 0, 0, 0.3) 50%, transparent 50%),
+                radial-gradient(circle at center, #2b1d00 0%, #000 100%);
+        }
+
+        /* Круглый осциллограф */
+        .crt-glass {
+            background: radial-gradient(circle at 50% 50%, #0d2b14 0%, #030a05 100%);
+            border: 16px solid #1f2124;
+            border-bottom-color: #36393f;
+            border-right-color: #2a2c30;
+            border-radius: 50%;
+            box-shadow: 
+                inset 0 0 40px rgba(0,0,0,1),
+                inset 0 0 15px rgba(16, 185, 129, 0.3),
+                0 15px 25px rgba(0,0,0,0.9),
+                0 -2px 5px rgba(255,255,255,0.05);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Блик на стекле */
+        .crt-glass::after {
+            content: '';
+            position: absolute;
+            top: 2%; left: 10%; width: 80%; height: 40%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.15), transparent);
+            border-radius: 50% / 100% 100% 0 0;
+            pointer-events: none;
+        }
+
+        /* Физические кнопки */
+        .btn-physical {
+            background: linear-gradient(180deg, #555 0%, #3a3c42 49%, #2a2c30 50%, #1f2124 100%);
+            border: 1px solid #000;
+            border-radius: 8px;
+            box-shadow: 
+                inset 0 1px 0 rgba(255,255,255,0.2),
+                0 6px 0 #0f0f12,
+                0 8px 10px rgba(0,0,0,0.6);
+            color: #eee;
+            text-shadow: 0 -1px 0 #000;
+            transition: all 0.1s ease;
+            position: relative;
+            top: 0;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .btn-physical:active {
+            top: 6px;
+            box-shadow: 
+                inset 0 2px 5px rgba(0,0,0,0.8),
+                0 0 0 #0f0f12,
+                0 2px 2px rgba(0,0,0,0.5);
+        }
+        
+        /* Цветные варианты кнопок */
+        .btn-red { background: linear-gradient(180deg, #cc4444 0%, #aa2222 49%, #881111 50%, #550000 100%); }
+        .btn-green { background: linear-gradient(180deg, #44cc66 0%, #22aa44 49%, #118822 50%, #005511 100%); }
+
+        /* Dymo Этикетки */
+        .dymo-label {
+            background: #111;
+            color: #eee;
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            text-transform: uppercase;
+            padding: 4px 12px;
+            border-radius: 2px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+            text-shadow: -1px -1px 0 #000, 1px 1px 0 rgba(255,255,255,0.2);
+            border: 1px solid #000;
+            border-bottom: 2px solid #333;
+            border-right: 2px solid #333;
+            display: inline-block;
+            letter-spacing: 1px;
+        }
+        .dymo-yellow {
+            background: #c99300;
+            color: #111;
+            text-shadow: -1px -1px 0 rgba(255,255,255,0.4), 1px 1px 0 rgba(0,0,0,0.2);
+            border-bottom: 2px solid #856100;
+            border-right: 2px solid #856100;
+        }
+
+        /* Индикаторы (Светодиоды) */
+        .led-indicator {
+            width: 14px; height: 14px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #ff4d4d, #990000);
+            box-shadow: inset 0 -2px 4px rgba(0,0,0,0.6), 0 0 2px #000;
+            border: 1px solid #111;
+        }
+        .led-active {
+            background: radial-gradient(circle at 30% 30%, #4dff4d, #009900);
+            box-shadow: inset 0 -2px 4px rgba(0,0,0,0.6), 0 0 10px #4dff4d, 0 0 2px #000;
+        }
+
+        /* 3D Прогресс Бар (Стеклянная колба) */
+        .skeuo-tube {
+            background: #0a0a0a;
+            border-radius: 20px;
+            box-shadow: inset 0 5px 10px rgba(0,0,0,0.9), 0 1px 0 rgba(255,255,255,0.15);
+            padding: 5px;
+            position: relative;
+        }
+        .skeuo-fill {
+            background: linear-gradient(180deg, #4ade80 0%, #16a34a 40%, #064e3b 100%);
+            border-radius: 15px;
+            box-shadow: inset 0 1px 2px rgba(255,255,255,0.6), inset 0 -3px 5px rgba(0,0,0,0.6);
+            height: 28px;
+            position: relative;
+            overflow: hidden;
+        }
+        .skeuo-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 45%;
+            background: linear-gradient(180deg, rgba(255,255,255,0.5), transparent);
+            border-radius: 15px 15px 0 0;
+        }
+
+        /* Физические болты */
+        .screw {
+            position: absolute;
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #999, #444);
+            box-shadow: inset 0 1px 2px rgba(255,255,255,0.5), 0 2px 4px rgba(0,0,0,0.8);
+            border: 1px solid #222;
+        }
+        .screw::after {
+            content: '';
+            position: absolute;
+            top: 50%; left: 15%; width: 70%; height: 2px;
+            background: #222;
+            transform: translateY(-50%) rotate(45deg);
+            box-shadow: 0 1px 0 rgba(255,255,255,0.4);
+        }
+        
+        .screw-tl { top: 12px; left: 12px; }
+        .screw-tr { top: 12px; right: 12px; }
+        .screw-bl { bottom: 12px; left: 12px; }
+        .screw-br { bottom: 12px; right: 12px; }
+    </style>
+</head>
+<body>
+
+    <!-- Навигационная панель (Металлическая рама) -->
+    <header class="hardware-panel rounded-none border-b-4 border-[#111] sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between relative">
+            <div class="screw screw-bl !bottom-2"></div>
+            <div class="screw screw-br !bottom-2"></div>
+            
+            <a href="#" class="flex items-center gap-4">
+                <div class="w-12 h-12 rounded-full inset-screen flex items-center justify-center">
+                    <i data-lucide="dna" class="w-6 h-6 text-[#4af626]"></i>
+                </div>
+                <span class="text-xl font-black tracking-widest text-white drop-shadow-[0_2px_2px_rgba(0,0,0,1)]">
+                    SPORE <span class="text-[#888]">DECOMP</span>
+                </span>
+            </a>
+
+            <nav class="hidden md:flex items-center gap-6 font-bold text-xs uppercase tracking-widest">
+                <a href="#about" class="px-4 py-2 hardware-panel !rounded-md !shadow-[0_3px_5px_rgba(0,0,0,0.5)] hover:bg-[#36393f] active:top-[2px] transition-all text-[#ccc]">О проекте</a>
+                <a href="#progress" class="px-4 py-2 hardware-panel !rounded-md !shadow-[0_3px_5px_rgba(0,0,0,0.5)] hover:bg-[#36393f] active:top-[2px] transition-all text-[#ccc]">Метрики</a>
+                <a href="#resources" class="px-4 py-2 hardware-panel !rounded-md !shadow-[0_3px_5px_rgba(0,0,0,0.5)] hover:bg-[#36393f] active:top-[2px] transition-all text-[#ccc]">Ресурсы</a>
+            </nav>
+
+            <div class="flex items-center gap-4">
+                <a href="https://www.youtube.com/@namelesSP-x4" target="_blank" rel="noopener noreferrer" class="btn-physical btn-red flex items-center gap-2 px-3 py-2 text-xs">
+                    <i data-lucide="youtube" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">YouTube</span>
+                </a>
+                <a href="https://github.com/megadeveloper83691638163818/SPSourse" target="_blank" rel="noopener noreferrer" class="btn-physical flex items-center gap-2 px-4 py-2 text-xs">
+                    <i data-lucide="github" class="w-4 h-4"></i>
+                    <span>GitHub</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="relative z-10">
+
+        <!-- 1. Hero Section -->
+        <section id="about" class="relative min-h-[calc(100vh-5rem)] flex items-center justify-center py-20 px-6">
+            <div class="max-w-7xl mx-auto grid lg:grid-cols-12 gap-16 items-center">
+                
+                <div class="lg:col-span-7 space-y-8">
+                    
+                    <div class="hardware-panel p-8 sm:p-10 relative">
+                        <div class="screw screw-tl"></div>
+                        <div class="screw screw-tr"></div>
+                        <div class="screw screw-bl"></div>
+                        <div class="screw screw-br"></div>
+                        
+                        <div class="flex items-center gap-3 mb-6">
+                            <div class="led-indicator led-active animate-pulse"></div>
+                            <div class="dymo-label">Работа идет</div>
+                        </div>
+
+                        <h1 class="text-4xl sm:text-6xl font-black leading-tight tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] mb-4">
+                            Spore Decompilation Project
+                        </h1>
+                        
+                        <div class="inset-screen p-4 mb-6">
+                            <span class="block text-xl sm:text-2xl font-bold uppercase">> Воссоздание движка с нуля_</span>
+                        </div>
+
+                        <p class="embossed-text text-lg leading-relaxed mb-8">
+                            Обратный инжиниринг оригинального бинарника Spore. Разбираем безымянные функции, сопоставляем заголовки и структурируем исходный код для сохранения архитектурного наследия игры.
+                        </p>
+
+                        <div class="flex flex-wrap items-center gap-4 pt-2">
+                            <a href="https://github.com/megadeveloper83691638163818/SPSourse" target="_blank" rel="noopener noreferrer" class="btn-physical flex items-center gap-3 px-6 py-4 text-sm">
+                                <i data-lucide="github" class="w-5 h-5"></i>
+                                <span>GitHub Spore_Decomp</span>
+                            </a>
+                            <a href="https://www.youtube.com/@namelesSP-x4" target="_blank" rel="noopener noreferrer" class="btn-physical btn-red flex items-center gap-3 px-6 py-4 text-sm">
+                                <i data-lucide="youtube" class="w-5 h-5"></i>
+                                <span>Канал NamelesSP</span>
+                            </a>
+                            <a href="https://github.com/megadeveloper83691638163818/SPSourse/releases/download/Spore_Decomp/SPSourse.zip" target="_blank" rel="noopener noreferrer" class="btn-physical btn-green flex items-center gap-3 px-6 py-4 text-sm">
+                                <i data-lucide="download" class="w-5 h-5"></i>
+                                <span>Скачать релиз</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-5 flex justify-center items-center relative mt-10 lg:mt-0">
+                    <div class="relative">
+                        <!-- Этикетки приклеенные к монитору -->
+                        <div class="dymo-label absolute -top-6 -right-6 transform rotate-6 z-20 shadow-xl">C++20 / Ghidra</div>
+                        <div class="dymo-label dymo-yellow absolute -bottom-4 -left-8 transform -rotate-3 z-20 shadow-xl">Target: SporeApp.exe</div>
+                        
+                        <!-- Физический круглый дисплей-осциллограф -->
+                        <div class="crt-glass w-80 h-80 sm:w-[400px] sm:h-[400px] flex items-center justify-center">
+                            <canvas id="oscCanvas" width="400" height="400" class="absolute inset-0 z-0"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- 2. Progress & Stats Section -->
+        <section id="progress" class="py-24 px-6 relative">
+            <div class="max-w-7xl mx-auto space-y-12">
+                
+                <div class="text-center max-w-3xl mx-auto space-y-4 hardware-panel p-6 inline-block mx-auto">
+                    <div class="screw screw-tl"></div>
+                    <div class="screw screw-tr"></div>
+                    <div class="screw screw-bl"></div>
+                    <div class="screw screw-br"></div>
+                    
+                    <div class="dymo-label mb-2">Статус системи</div>
+                    <h2 class="text-3xl sm:text-4xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">Аналитика кода</h2>
+                    <p class="embossed-text font-medium text-sm">Текущие показатели покрытия заголовков и объема остаточного неразрешенного кода.</p>
+                </div>
+
+                <!-- Главная панель метрик -->
+                <div class="hardware-panel p-10 rounded-2xl">
+                    <div class="screw screw-tl"></div>
+                    <div class="screw screw-tr"></div>
+                    <div class="screw screw-bl"></div>
+                    <div class="screw screw-br"></div>
+
+                    <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-8">
+                        <div>
+                            <span class="dymo-label mb-3 block w-max">Standalone Headers</span>
+                            <div class="inset-screen px-6 py-2 inline-block">
+                                <h3 class="text-5xl font-black">88.66%</h3>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="inset-screen px-4 py-2">
+                                <span class="font-bold">13,444</span> / 15,163
+                            </div>
+                            <div class="dymo-label dymo-yellow hidden md:block">Цель 90%: ~203 файла</div>
+                        </div>
+                    </div>
+
+                    <!-- Физическая стеклянная колба прогресса -->
+                    <div>
+                        <div class="flex justify-between text-xs font-bold text-[#888] mb-2 px-2 uppercase tracking-widest">
+                            <span>0%</span>
+                            <span>25%</span>
+                            <span>50%</span>
+                            <span>75%</span>
+                            <span class="text-white drop-shadow-[0_0_5px_rgba(255,255,255,0.5)]">100%</span>
+                        </div>
+                        <div class="skeuo-tube">
+                            <div class="skeuo-fill" style="width: 88.66%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Карточки подмодулей -->
+                <div class="grid md:grid-cols-3 gap-8">
+                    
+                    <!-- Card 1 -->
+                    <div class="hardware-panel p-6 flex flex-col justify-between">
+                        <div class="screw screw-tl"></div> <div class="screw screw-tr"></div>
+                        <div class="screw screw-bl"></div> <div class="screw screw-br"></div>
+                        
+                        <div class="flex justify-between items-start mb-6">
+                            <div class="dymo-label dymo-yellow">Unresolved Split</div>
+                            <div class="inset-screen-amber inset-screen px-2 py-1 text-xs">34 ФАЙЛА</div>
+                        </div>
+                        <p class="embossed-text text-sm mb-6 h-[60px]">Сырой неотдизассемблированный код, требующий ручного анализа структуры функций.</p>
+                        <div class="inset-screen-amber inset-screen p-3 text-center">
+                            <div class="text-2xl font-bold">~169,000 <span class="text-xs">строк</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Card 2 -->
+                    <div class="hardware-panel p-6 flex flex-col justify-between">
+                        <div class="screw screw-tl"></div> <div class="screw screw-tr"></div>
+                        <div class="screw screw-bl"></div> <div class="screw screw-br"></div>
+                        
+                        <div class="flex justify-between items-start mb-6">
+                            <div class="dymo-label dymo-yellow">Unresolved Domain</div>
+                            <div class="inset-screen-amber inset-screen px-2 py-1 text-xs">11 ФАЙЛОВ</div>
+                        </div>
+                        <p class="embossed-text text-sm mb-6 h-[60px]">Сгруппированные по подсистемам подмодули движка, ожидающие разбора.</p>
+                        <div class="inset-screen-amber inset-screen p-3 text-center">
+                            <div class="text-2xl font-bold">~26,700 <span class="text-xs">строк</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Card 3 -->
+                    <div class="hardware-panel p-6 flex flex-col justify-between border-2 border-[#1a1a1a]">
+                        <div class="screw screw-tl"></div> <div class="screw screw-tr"></div>
+                        <div class="screw screw-bl"></div> <div class="screw screw-br"></div>
+                        
+                        <div class="flex justify-between items-start mb-6">
+                            <div class="dymo-label flex items-center gap-2">
+                                <div class="led-indicator led-active animate-pulse"></div> Безымянный код
+                            </div>
+                            <div class="inset-screen px-2 py-1 text-xs">FUN</div>
+                        </div>
+                        <p class="embossed-text text-sm mb-6 h-[60px]">Суммарный объем подлежащих сигнатурному поиску и переименованию функций.</p>
+                        <div class="inset-screen p-3 text-center">
+                            <div class="text-2xl font-bold">~195,700 <span class="text-xs">строк</span></div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. Links & Resources Section -->
+        <section id="resources" class="py-24 px-6 relative">
+            <div class="max-w-7xl mx-auto">
+                <div class="hardware-panel p-10 sm:p-16">
+                    <div class="screw screw-tl"></div> <div class="screw screw-tr"></div>
+                    <div class="screw screw-bl"></div> <div class="screw screw-br"></div>
+
+                    <div class="grid lg:grid-cols-2 gap-16 items-center">
+                        <div class="space-y-8">
+                            <div class="dymo-label">База данных</div>
+                            <h2 class="text-4xl sm:text-5xl font-black text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">
+                                Исходные материалы
+                            </h2>
+                            <p class="embossed-text text-lg">
+                                Все наработки открыты для исследователей архитектуры старых игровых движков. Следите за обновлением базы символов в репозитории.
+                            </p>
+
+                            <div class="flex flex-col sm:flex-row gap-4 pt-4">
+                                <a href="https://github.com/megadeveloper83691638163818/SPSourse" target="_blank" rel="noopener noreferrer" class="btn-physical flex items-center justify-center gap-3 px-6 py-4 text-sm">
+                                    <i data-lucide="github" class="w-5 h-5"></i>
+                                    <span>Открыть GitHub</span>
+                                </a>
+                                <a href="https://github.com/megadeveloper83691638163818/SPSourse/releases/download/Spore_Decomp/SPSourse.zip" target="_blank" rel="noopener noreferrer" class="btn-physical btn-green flex items-center justify-center gap-3 px-6 py-4 text-sm">
+                                    <i data-lucide="download" class="w-5 h-5"></i>
+                                    <span>Скачать проект</span>
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <!-- Физические слоты-кнопки для ссылок -->
+                            <a href="https://github.com/megadeveloper83691638163818/SPSourse" target="_blank" rel="noopener noreferrer" class="block hardware-panel p-4 hover:bg-[#333] active:top-[2px] transition-all cursor-pointer">
+                                <div class="flex items-center gap-5">
+                                    <div class="p-3 bg-[#111] rounded shadow-inner border border-[#000] text-[#ccc]">
+                                        <i data-lucide="github" class="w-6 h-6"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-white uppercase tracking-wide">GITHUB Spore_Decomp</div>
+                                        <div class="text-xs text-[#888] mt-1 font-mono">Основной репозиторий проекта</div>
+                                    </div>
+                                </div>
+                            </a>
+
+                            <a href="https://www.youtube.com/@namelesSP-x4" target="_blank" rel="noopener noreferrer" class="block hardware-panel p-4 hover:bg-[#333] active:top-[2px] transition-all cursor-pointer">
+                                <div class="flex items-center gap-5">
+                                    <div class="p-3 bg-[#111] rounded shadow-inner border border-[#000] text-[#ff4444]">
+                                        <i data-lucide="youtube" class="w-6 h-6"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-white uppercase tracking-wide">YOUTUBE NAMELESSP</div>
+                                        <div class="text-xs text-[#888] mt-1 font-mono">Видеоматериалы и туториалы</div>
+                                    </div>
+                                </div>
+                            </a>
+
+                            <a href="https://github.com/megadeveloper83691638163818/SPSourse" target="_blank" rel="noopener noreferrer" class="block hardware-panel p-4 hover:bg-[#333] active:top-[2px] transition-all cursor-pointer">
+                                <div class="flex items-center gap-5">
+                                    <div class="p-3 bg-[#111] rounded shadow-inner border border-[#000] text-[#aaa]">
+                                        <i data-lucide="database" class="w-6 h-6"></i>
+                                    </div>
+                                    <div>
+                                        <div class="font-bold text-white uppercase tracking-wide">БАЗА СИМВОЛОВ FUN</div>
+                                        <div class="text-xs text-[#888] mt-1 font-mono">Таблица сопоставления функций</div>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 4. Footer (Металлическая плашка) -->
+    <footer class="hardware-panel rounded-none border-t-4 border-[#111] py-8 px-6 relative z-10">
+        <div class="max-w-7xl mx-auto space-y-6">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="dymo-label">SPORE DECOMP</div>
+
+                <div class="flex items-center gap-6 text-xs font-bold uppercase tracking-widest text-[#aaa]">
+                    <a href="https://opensource.org/licenses/MIT" target="_blank" rel="noopener noreferrer" class="hover:text-white">MIT Лицензия</a>
+                    <span class="text-[#555]">|</span>
+                    <a href="https://github.com/megadeveloper83691638163818/SPSourse" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-white">
+                        <i data-lucide="github" class="w-4 h-4"></i> GitHub
+                    </a>
+                    <span class="text-[#555]">|</span>
+                    <a href="https://www.youtube.com/@namelesSP-x4" target="_blank" rel="noopener noreferrer" class="flex items-center gap-2 hover:text-white">
+                        <i data-lucide="youtube" class="w-4 h-4"></i> YouTube
+                    </a>
+                </div>
+            </div>
+
+            <div class="inset-screen p-4 text-[10px] sm:text-xs text-[#4af626] leading-relaxed max-w-4xl opacity-70 font-mono">
+                > ДИСКЛЕЙМЕР: Данный проект не аффилирован с Maxis, Electronic Arts или их дочерними компаниями. Все товарные знаки и наименования принадлежат их соответствующим владельцам. Исходный код воссоздается исключительно в исследовательских, образовательных и историко-сохранительных целях без использования проприетарного исходного кода._
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        // Анимация осциллографа (вместо плавающих частиц)
+        const canvas = document.getElementById('oscCanvas');
+        const ctx = canvas.getContext('2d');
+        let width = canvas.width = 400;
+        let height = canvas.height = 400;
+        let time = 0;
+
+        function drawOscilloscope() {
+            ctx.clearRect(0, 0, width, height);
+            
+            // Рисуем сетку радара/осциллографа
+            ctx.strokeStyle = 'rgba(16, 185, 129, 0.15)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for(let i = 0; i < width; i += 40) { 
+                ctx.moveTo(i, 0); ctx.lineTo(i, height); 
+                ctx.moveTo(0, i); ctx.lineTo(width, i); 
+            }
+            // Круги
+            ctx.arc(width/2, height/2, 160, 0, Math.PI * 2);
+            ctx.arc(width/2, height/2, 80, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Перекрестие
+            ctx.beginPath();
+            ctx.moveTo(width/2, 0); ctx.lineTo(width/2, height);
+            ctx.moveTo(0, height/2); ctx.lineTo(width, height/2);
+            ctx.stroke();
+
+            // Рисуем сигнал (волна)
+            ctx.beginPath();
+            ctx.strokeStyle = '#4af626';
+            ctx.lineWidth = 3;
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#4af626';
+            
+            for (let i = 0; i < width; i++) {
+                // Комплексная волна, похожая на анализ данных
+                let noise = Math.random() * 5 * Math.sin(time * 2);
+                let y = (height / 2) 
+                      + Math.sin(i * 0.03 + time) * 40 
+                      + Math.sin(i * 0.1 - time * 1.5) * 20 * Math.sin(time * 0.5)
+                      + noise;
+                
+                // Сводим края волны к центру (затухание по краям)
+                let envelope = Math.sin((i / width) * Math.PI);
+                y = (height / 2) + ((y - (height / 2)) * envelope);
+
+                if (i === 0) ctx.moveTo(i, y);
+                else ctx.lineTo(i, y);
+            }
+            ctx.stroke();
+            
+            // Убираем свечение для следующего кадра
+            ctx.shadowBlur = 0;
+            
+            // Движущийся сканер
+            ctx.fillStyle = 'rgba(74, 246, 38, 0.05)';
+            let scanY = (time * 100) % height;
+            ctx.fillRect(0, scanY, width, 10);
+            ctx.fillStyle = 'rgba(74, 246, 38, 0.2)';
+            ctx.fillRect(0, scanY + 8, width, 2);
+
+            time += 0.03;
+            requestAnimationFrame(drawOscilloscope);
+        }
+
+        drawOscilloscope();
+    </script>
+</body>
+</html>
